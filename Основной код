@@ -1,0 +1,639 @@
+import streamlit as st
+import json
+from pathlib import Path
+
+# ============================================
+# НАСТРОЙКИ СТРАНИЦЫ
+# ============================================
+st.set_page_config(
+    page_title="Льготы и выплаты — узнай, что тебе положено",
+    page_icon="🇷🇺",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# ============================================
+# СКРЫВАЕМ СТАНДАРТНЫЙ STREAMLIT БРЕНДИНГ
+# ============================================
+hide_streamlit_style = """
+<style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .stDeployButton {display: none;}
+
+    /* Основные стили */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif;
+    }
+
+    /* Герой-секция */
+    .hero-section {
+        background: linear-gradient(135deg, #1a365d 0%, #2d5a87 50%, #2E86AB 100%);
+        padding: 3rem 2rem;
+        border-radius: 20px;
+        color: white;
+        text-align: center;
+        margin-bottom: 2rem;
+        box-shadow: 0 20px 60px rgba(46, 134, 171, 0.3);
+    }
+
+    .hero-title {
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
+        line-height: 1.2;
+    }
+
+    .hero-subtitle {
+        font-size: 1.2rem;
+        opacity: 0.9;
+        font-weight: 300;
+        margin-bottom: 1.5rem;
+    }
+
+    .hero-stats {
+        display: flex;
+        justify-content: center;
+        gap: 2rem;
+        margin-top: 1.5rem;
+        flex-wrap: wrap;
+    }
+
+    .hero-stat {
+        text-align: center;
+    }
+
+    .hero-stat-number {
+        font-size: 2rem;
+        font-weight: 800;
+    }
+
+    .hero-stat-label {
+        font-size: 0.85rem;
+        opacity: 0.8;
+    }
+
+    /* Карточки категорий */
+    .category-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        border: 1px solid #e8eef3;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        text-align: center;
+        height: 100%;
+    }
+
+    .category-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 40px rgba(46, 134, 171, 0.15);
+        border-color: #2E86AB;
+    }
+
+    .category-icon {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .category-name {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1a365d;
+    }
+
+    .category-count {
+        font-size: 0.8rem;
+        color: #718096;
+        margin-top: 0.25rem;
+    }
+
+    /* Карточки льгот */
+    .benefit-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.8rem;
+        margin-bottom: 1.2rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+        border-left: 4px solid #2E86AB;
+        border: 1px solid #e8eef3;
+        border-left: 4px solid #2E86AB;
+    }
+
+    .benefit-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #1a365d;
+        margin-bottom: 0.5rem;
+    }
+
+    .benefit-amount {
+        background: linear-gradient(135deg, #e6f7ed, #d4f5e2);
+        color: #1a7a3a;
+        padding: 0.5rem 1rem;
+        border-radius: 10px;
+        font-weight: 600;
+        display: inline-block;
+        margin: 0.5rem 0;
+        font-size: 0.95rem;
+    }
+
+    .benefit-description {
+        color: #4a5568;
+        line-height: 1.6;
+        margin: 0.8rem 0;
+    }
+
+    .info-block {
+        background: #f7fafc;
+        border-radius: 12px;
+        padding: 1rem 1.2rem;
+        margin: 0.5rem 0;
+    }
+
+    .info-block-title {
+        font-weight: 600;
+        color: #2d3748;
+        font-size: 0.9rem;
+        margin-bottom: 0.4rem;
+    }
+
+    .info-block-content {
+        color: #4a5568;
+        font-size: 0.88rem;
+        line-height: 1.6;
+    }
+
+    .apply-button {
+        background: linear-gradient(135deg, #2E86AB, #1a6b8a);
+        color: white;
+        padding: 0.6rem 1.5rem;
+        border-radius: 10px;
+        text-decoration: none;
+        font-weight: 600;
+        display: inline-block;
+        margin-top: 0.8rem;
+        transition: all 0.3s ease;
+    }
+
+    .apply-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(46, 134, 171, 0.4);
+    }
+
+    /* Поиск */
+    .search-result-count {
+        background: #edf2f7;
+        padding: 0.5rem 1rem;
+        border-radius: 10px;
+        color: #4a5568;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+    }
+
+    /* Квиз */
+    .quiz-option {
+        background: white;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1rem 1.2rem;
+        margin: 0.4rem 0;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .quiz-option:hover {
+        border-color: #2E86AB;
+        background: #f0f7fa;
+    }
+
+    /* Футер */
+    .custom-footer {
+        text-align: center;
+        padding: 2rem;
+        margin-top: 3rem;
+        border-top: 1px solid #e2e8f0;
+        color: #a0aec0;
+        font-size: 0.85rem;
+    }
+
+    /* Sidebar стили */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #1a365d 0%, #2d5a87 100%);
+    }
+
+    [data-testid="stSidebar"] .stMarkdown {
+        color: white;
+    }
+
+    [data-testid="stSidebar"] .stSelectbox label,
+    [data-testid="stSidebar"] .stMultiSelect label,
+    [data-testid="stSidebar"] .stRadio label {
+        color: white !important;
+    }
+</style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+
+# ============================================
+# ЗАГРУЗКА ДАННЫХ
+# ============================================
+@st.cache_data
+def load_data():
+    data_path = Path(__file__).parent / "data" / "benefits.json"
+    with open(data_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def get_all_benefits(data):
+    """Получить все льготы единым списком"""
+    all_benefits = []
+    for category in data["categories"]:
+        for benefit in category["benefits"]:
+            benefit_copy = benefit.copy()
+            benefit_copy["category_name"] = category["name"]
+            benefit_copy["category_icon"] = category["icon"]
+            benefit_copy["category_id"] = category["id"]
+            all_benefits.append(benefit_copy)
+    return all_benefits
+
+
+def search_benefits(all_benefits, query):
+    """Поиск по льготам"""
+    query = query.lower().strip()
+    results = []
+    for b in all_benefits:
+        searchable = f"{b['title']} {b['description']} {' '.join(b['who'])} {b['category_name']}".lower()
+        if query in searchable:
+            results.append(b)
+    return results
+
+
+def render_benefit_card(benefit):
+    """Отрисовка карточки льготы"""
+    who_list = "".join([f"<li>{w}</li>" for w in benefit["who"]])
+    docs_list = "".join([f"<li>{d}</li>" for d in benefit["documents"]])
+
+    st.markdown(f"""
+    <div class="benefit-card">
+        <div class="benefit-title">{benefit['category_icon']} {benefit['title']}</div>
+        <div class="benefit-amount">💵 {benefit['amount']}</div>
+        <div class="benefit-description">{benefit['description']}</div>
+
+        <div class="info-block">
+            <div class="info-block-title">👤 Кому положено:</div>
+            <div class="info-block-content">
+                <ul style="margin: 0; padding-left: 1.2rem;">{who_list}</ul>
+            </div>
+        </div>
+
+        <div class="info-block">
+            <div class="info-block-title">📄 Документы:</div>
+            <div class="info-block-content">
+                <ul style="margin: 0; padding-left: 1.2rem;">{docs_list}</ul>
+            </div>
+        </div>
+
+        <div class="info-block">
+            <div class="info-block-title">🏢 Куда обращаться:</div>
+            <div class="info-block-content">{benefit['where']}</div>
+        </div>
+
+        <a href="{benefit['link']}" target="_blank" class="apply-button">
+            Перейти к оформлению →
+        </a>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ============================================
+# ГЛАВНАЯ СТРАНИЦА
+# ============================================
+def main():
+    data = load_data()
+    all_benefits = get_all_benefits(data)
+
+    # --- SIDEBAR ---
+    with st.sidebar:
+        st.markdown("## 🇷🇺 Навигация")
+        st.markdown("---")
+
+        page = st.radio(
+            "Разделы:",
+            ["🏠 Главная", "🔍 Поиск льгот", "📋 Подобрать льготы", "📚 Все категории"],
+            label_visibility="collapsed"
+        )
+
+        st.markdown("---")
+        st.markdown("""
+        <div style='color: rgba(255,255,255,0.7); font-size: 0.8rem; line-height: 1.5;'>
+            <p>ℹ️ Информация актуальна на 2025 год.</p>
+            <p>Суммы выплат могут отличаться в зависимости от региона.</p>
+            <p>Для точной информации обращайтесь в МФЦ или на Госуслуги.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # === СТРАНИЦА: ГЛАВНАЯ ===
+    if page == "🏠 Главная":
+        render_home(data, all_benefits)
+
+    # === СТРАНИЦА: ПОИСК ===
+    elif page == "🔍 Поиск льгот":
+        render_search(all_benefits)
+
+    # === СТРАНИЦА: КВИЗ ===
+    elif page == "📋 Подобрать льготы":
+        render_quiz(all_benefits)
+
+    # === СТРАНИЦА: ВСЕ КАТЕГОРИИ ===
+    elif page == "📚 Все категории":
+        render_all_categories(data)
+
+    # --- ФУТЕР ---
+    st.markdown("""
+    <div class="custom-footer">
+        <p>© 2025 Льготы и выплаты. Информационный сервис.</p>
+        <p>Не является официальным государственным ресурсом. Все данные взяты из открытых источников.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ============================================
+# СТРАНИЦА: ГЛАВНАЯ
+# ============================================
+def render_home(data, all_benefits):
+    total = len(all_benefits)
+    categories_count = len(data["categories"])
+
+    st.markdown(f"""
+    <div class="hero-section">
+        <div class="hero-title">Узнай, какие льготы и выплаты<br>тебе положены</div>
+        <div class="hero-subtitle">
+            Пособия, вычеты, компенсации, субсидии — всё в одном месте.<br>
+            Простым языком, с суммами и инструкциями.
+        </div>
+        <div class="hero-stats">
+            <div class="hero-stat">
+                <div class="hero-stat-number">{total}+</div>
+                <div class="hero-stat-label">льгот и выплат</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-number">{categories_count}</div>
+                <div class="hero-stat-label">категорий</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-number">2025</div>
+                <div class="hero-stat-label">актуальные данные</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Быстрый поиск
+    st.markdown("### 🔍 Быстрый поиск")
+    quick_search = st.text_input(
+        "Введите ключевое слово",
+        placeholder="Например: материнский капитал, вычет, ипотека, пенсия...",
+        label_visibility="collapsed"
+    )
+
+    if quick_search:
+        results = search_benefits(all_benefits, quick_search)
+        if results:
+            st.success(f"Найдено: {len(results)} результатов")
+            for b in results:
+                render_benefit_card(b)
+        else:
+            st.warning("Ничего не найдено. Попробуйте другой запрос.")
+        return
+
+    # Категории
+    st.markdown("### 📂 Выберите категорию")
+
+    cols = st.columns(4)
+    for i, category in enumerate(data["categories"]):
+        col = cols[i % 4]
+        with col:
+            count = len(category["benefits"])
+            st.markdown(f"""
+            <div class="category-card">
+                <div class="category-icon">{category['icon']}</div>
+                <div class="category-name">{category['name']}</div>
+                <div class="category-count">{count} выплат</div>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button(f"Открыть", key=f"cat_{category['id']}", use_container_width=True):
+                st.session_state["selected_category"] = category["id"]
+
+    # Показ выбранной категории
+    if "selected_category" in st.session_state:
+        cat_id = st.session_state["selected_category"]
+        for category in data["categories"]:
+            if category["id"] == cat_id:
+                st.markdown(f"---")
+                st.markdown(f"## {category['icon']} {category['name']}")
+                for benefit in category["benefits"]:
+                    benefit_copy = benefit.copy()
+                    benefit_copy["category_icon"] = category["icon"]
+                    render_benefit_card(benefit_copy)
+                break
+
+
+# ============================================
+# СТРАНИЦА: ПОИСК
+# ============================================
+def render_search(all_benefits):
+    st.markdown("## 🔍 Поиск по всем льготам и выплатам")
+    st.markdown("Введите ключевое слово: название выплаты, категорию людей или жизненную ситуацию.")
+
+    query = st.text_input(
+        "Поиск",
+        placeholder="Например: ребёнок, ипотека, пенсия, инвалидность, студент, безработный...",
+        label_visibility="collapsed"
+    )
+
+    if query:
+        results = search_benefits(all_benefits, query)
+        st.markdown(f"""
+        <div class="search-result-count">
+            Найдено результатов: <strong>{len(results)}</strong>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if results:
+            for b in results:
+                render_benefit_card(b)
+        else:
+            st.info("😕 Ничего не найдено. Попробуйте другие ключевые слова.")
+            st.markdown("**Подсказки для поиска:**")
+            st.markdown("- материнский капитал")
+            st.markdown("- налоговый вычет")
+            st.markdown("- пособие по безработице")
+            st.markdown("- субсидия ЖКХ")
+    else:
+        st.info("👆 Начните вводить запрос, чтобы найти нужные льготы и выплаты.")
+
+
+# ============================================
+# СТРАНИЦА: КВИЗ (подбор льгот)
+# ============================================
+def render_quiz(all_benefits):
+    st.markdown("## 📋 Подберём льготы под вашу ситуацию")
+    st.markdown("Ответьте на несколько вопросов — мы покажем, что вам положено.")
+
+    st.markdown("---")
+
+    # Вопрос 1
+    age_group = st.selectbox(
+        "👤 Ваш возраст:",
+        ["Выберите...", "14–22 года", "23–35 лет", "36–54 года", "55–69 лет", "70+ лет"]
+    )
+
+    # Вопрос 2
+    has_children = st.selectbox(
+        "👶 Есть ли у вас дети?",
+        ["Выберите...", "Нет", "Да, один ребёнок", "Да, двое детей", "Да, трое и более детей", "Ожидаю ребёнка"]
+    )
+
+    # Вопрос 3
+    employment = st.selectbox(
+        "💼 Ваш статус занятости:",
+        ["Выберите...", "Работаю официально", "Работаю неофициально", "Безработный", "Студент", "Пенсионер", "В декрете", "ИП/Самозанятый"]
+    )
+
+    # Вопрос 4
+    has_disability = st.selectbox(
+        "♿ Есть ли инвалидность?",
+        ["Выберите...", "Нет", "I группа", "II группа", "III группа", "Ребёнок-инвалид"]
+    )
+
+    # Вопрос 5
+    housing = st.selectbox(
+        "🏠 Жилищная ситуация:",
+        ["Выберите...", "Собственное жильё", "Ипотека", "Аренда", "Планирую покупку", "Нет жилья"]
+    )
+
+    st.markdown("---")
+
+    if st.button("🔍 Подобрать льготы", type="primary", use_container_width=True):
+        if "Выберите..." in [age_group, has_children, employment, has_disability, housing]:
+            st.warning("⚠️ Пожалуйста, ответьте на все вопросы.")
+            return
+
+        matched = []
+
+        for b in all_benefits:
+            score = 0
+
+            # Логика подбора
+            title_lower = b["title"].lower()
+            desc_lower = b["description"].lower()
+            who_lower = " ".join(b["who"]).lower()
+            combined = f"{title_lower} {desc_lower} {who_lower}"
+
+            # Дети
+            if has_children != "Нет":
+                if any(w in combined for w in ["дет", "ребён", "семь", "мат", "рожден", "школ", "декрет"]):
+                    score += 3
+                if "трое" in has_children.lower() or "более" in has_children.lower():
+                    if any(w in combined for w in ["многодет", "школьн"]):
+                        score += 2
+
+            if has_children == "Ожидаю ребёнка":
+                if any(w in combined for w in ["беременн", "родам", "рожден"]):
+                    score += 3
+
+            # Работа
+            if employment == "Работаю официально":
+                if any(w in combined for w in ["вычет", "ндфл", "налог", "работающ"]):
+                    score += 2
+
+            if employment == "Безработный":
+                if any(w in combined for w in ["безработ", "занятост", "переобуч", "пособие по безработице"]):
+                    score += 3
+
+            if employment == "Студент":
+                if any(w in combined for w in ["студент", "стипенди", "обучен", "пушкин", "молод"]):
+                    score += 3
+
+            if employment == "Пенсионер":
+                if any(w in combined for w in ["пенсион", "пожил", "проезд", "капремонт", "лекарств"]):
+                    score += 3
+
+            if employment == "В декрете":
+                if any(w in combined for w in ["декрет", "беременн", "родам", "мам", "переобуч"]):
+                    score += 3
+
+            # Инвалидность
+            if has_disability != "Нет":
+                if any(w in combined for w in ["инвалид", "едв", "реабилит", "парков", "мсэ"]):
+                    score += 3
+
+            # Жильё
+            if housing in ["Ипотека", "Планирую покупку"]:
+                if any(w in combined for w in ["ипотек", "жиль", "покупк", "вычет за покупку"]):
+                    score += 3
+
+            if housing in ["Собственное жильё", "Аренда"]:
+                if any(w in combined for w in ["жкх", "субсид", "капремонт", "коммунал"]):
+                    score += 2
+
+            # Возраст
+            if "70+" in age_group:
+                if any(w in combined for w in ["капремонт", "пенсион", "пожил"]):
+                    score += 2
+
+            if "14–22" in age_group:
+                if any(w in combined for w in ["пушкин", "студент", "молод"]):
+                    score += 2
+
+            if score > 0:
+                b_copy = b.copy()
+                b_copy["_score"] = score
+                matched.append(b_copy)
+
+        # Сортировка по релевантности
+        matched.sort(key=lambda x: x["_score"], reverse=True)
+
+        # Убираем дубли
+        seen = set()
+        unique_matched = []
+        for m in matched:
+            if m["title"] not in seen:
+                seen.add(m["title"])
+                unique_matched.append(m)
+
+        if unique_matched:
+            st.success(f"🎯 Найдено {len(unique_matched)} льгот и выплат, которые могут быть вам положены!")
+            st.markdown("---")
+            for b in unique_matched:
+                render_benefit_card(b)
+        else:
+            st.info("К сожалению, по вашим параметрам не найдено подходящих льгот. Попробуйте изменить ответы или воспользуйтесь поиском.")
+
+
+# ============================================
+# СТРАНИЦА: ВСЕ КАТЕГОРИИ
+# ============================================
+def render_all_categories(data):
+    st.markdown("## 📚 Все льготы и выплаты по категориям")
+    st.markdown("Полный каталог всех доступных льгот, пособий и выплат.")
+
+    for category in data["categories"]:
+        with st.expander(f"{category['icon']} {category['name']} ({len(category['benefits'])} выплат)", expanded=False):
+            for benefit in category["benefits"]:
+                benefit_copy = benefit.copy()
+                benefit_copy["category_icon"] = category["icon"]
+                render_benefit_card(benefit_copy)
+
+
+# ============================================
+# ЗАПУСК
+# ============================================
+if __name__ == "__main__":
+    main()
